@@ -4,14 +4,14 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Xml;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.Button;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using System.Runtime.Serialization.Json;
+using System.IO;
 
-namespace _2021603523_NguyenThanhHa
+namespace Winform
 {
     public partial class Form1 : Form
     {
@@ -19,142 +19,114 @@ namespace _2021603523_NguyenThanhHa
         {
             InitializeComponent();
         }
-        XmlDocument doc = new XmlDocument();
-        string tentep = @"C:\Users\pertc\Desktop\TichHop\2021603523_NguyenThanhHa\nhanvien.xml";
-        int d;
-        private void HienThi()
-        {
-            datanhanvien.Rows.Clear();
-            doc.Load(tentep);
-            XmlNodeList Ds = doc.SelectNodes("/ds/nhanvien");
-            int sd = 0;
-            datanhanvien.ColumnCount = 4;
-            datanhanvien.Rows.Add();
-            foreach (XmlNode nhanvien in Ds)
-            {
-                XmlNode ma_nv = nhanvien.SelectSingleNode("@manv");
-                datanhanvien.Rows[sd].Cells[0].Value = ma_nv.InnerText.ToString();
-                XmlNode ho = nhanvien.SelectSingleNode("hoten/ho");
-                datanhanvien.Rows[sd].Cells[1].Value = ho.InnerText.ToString();
-                XmlNode ten = nhanvien.SelectSingleNode("hoten/ten");
-                datanhanvien.Rows[sd].Cells[2].Value = ten.InnerText.ToString();
-                XmlNode diachi = nhanvien.SelectSingleNode("diachi");
-                datanhanvien.Rows[sd].Cells[3].Value = diachi.InnerText.ToString();
-                datanhanvien.Rows.Add();
-                sd++;
-            }
-
-        }
-        
-        private void button1_Click(object sender, EventArgs e)
-        {
-            doc.Load(tentep);
-            XmlElement goc = doc.DocumentElement;
-            XmlNode nhan_vien = doc.CreateElement("nhanvien");
-            XmlNode hoten = doc.CreateElement("hoten");
-            XmlAttribute manv = doc.CreateAttribute("manv");
-            XmlNode ho = doc.CreateElement("ho");
-            XmlNode ten = doc.CreateElement("ten");
-            XmlNode diachi = doc.CreateElement("diachi");
-            manv.InnerText = txtMaNV.Text;
-            ho.InnerText = txtHo.Text;
-            ten.InnerText = txtTen.Text;
-            diachi.InnerText = txtDiaChi.Text;
-            nhan_vien.Attributes.Append(manv);
-            hoten.AppendChild(ho);
-            hoten.AppendChild(ten);
-            nhan_vien.AppendChild(hoten);
-            nhan_vien.AppendChild(diachi);
-            goc.AppendChild(nhan_vien);
-            doc.Save(tentep);
-            HienThi();
-        }
-
-        private void dataGridView1_CellContentClick(object sender, DataGridViewCellEventArgs e)
-        {
-
-        }
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            HienThi();
+            LoadDataGridView();
+            LoadCombobox();
+        }
+        public void LoadDataGridView()
+        {
+            string link = "http://localhost:90/kthp/api/sanpham";
+            HttpWebRequest request = WebRequest.CreateHttp(link);
+            DataContractJsonSerializer js = new DataContractJsonSerializer(typeof(SanPham[]));
+            object data = js.ReadObject(request.GetResponse().GetResponseStream());
+            SanPham[] arr = data as SanPham[];
+            dataGridView1.DataSource = arr;
+        }
+        public void LoadCombobox()
+        {
+            string link = "http://localhost:90/kthp/api/danhmuc";
+            HttpWebRequest request = WebRequest.CreateHttp(link);
+            WebResponse response = request.GetResponse();
+            DataContractJsonSerializer js = new DataContractJsonSerializer(typeof(DanhMuc[]));
+            object data = js.ReadObject(response.GetResponseStream());
+            DanhMuc[] arr = data as DanhMuc[];
+            cbxDM.DataSource = arr;
+            cbxDM.ValueMember = "MaDanhMuc";
+            cbxDM.DisplayMember = "TenDanhMuc";
         }
 
-        private void button3_Click(object sender, EventArgs e)
+        private void button1_Click(object sender, EventArgs e)
         {
-            doc.Load(tentep);
-            XmlElement goc = doc.DocumentElement;
-            XmlNode deleteNV = goc.SelectSingleNode("/ds/nhanvien[@manv='" +txtMaNV.Text+"']");
-            goc.RemoveChild(deleteNV);
-            doc.Save(tentep);
-            HienThi();
-        }
-
-        private void datanhanvien_CellClick(object sender, DataGridViewCellEventArgs e)
-        {
-            d = e.RowIndex;
-            txtMaNV.Text = datanhanvien.Rows[d].Cells[0].Value.ToString();
-            txtHo.Text = datanhanvien.Rows[d].Cells[1].Value.ToString();
-            txtTen.Text = datanhanvien.Rows[d].Cells[2].Value.ToString();
-            txtDiaChi.Text = datanhanvien.Rows[d].Cells[3].Value.ToString();
-            this.Hide();
-            Form2 form2 = new Form2();
-            form2.Show(); 
+            // Thêm
+            string link = "http://localhost:90/kthp/api/sanpham?ma=" + txtMa.Text + "&ten=" + txtTen.Text + "&gia=" + txtDon.Text + "&madm=" + cbxDM.SelectedValue;
+            HttpWebRequest resquest = WebRequest.CreateHttp(link);
+            resquest.Method = "POST";
+            Stream stream = resquest.GetRequestStream();
+            DataContractJsonSerializer js = new DataContractJsonSerializer(typeof(bool));
+            object data = js.ReadObject(resquest.GetResponse().GetResponseStream());
+            bool result = (bool)data;
+            if (result)
+            {
+                LoadDataGridView();
+                MessageBox.Show("Thêm thành công");
+            }
+            else
+            {
+                MessageBox.Show("Thêm không thành công");
+            }
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
-            doc.Load(tentep);
-            XmlElement goc = doc.DocumentElement;
-            XmlNode oldNV = goc.SelectSingleNode("/ds/nhanvien[@manv='" + txtMaNV.Text + "']");
-            XmlNode nhan_vien = doc.CreateElement("nhanvien");
-            XmlNode hoten = doc.CreateElement("hoten");
-            XmlAttribute manv = doc.CreateAttribute("manv");
-            XmlNode ho = doc.CreateElement("ho");
-            XmlNode ten = doc.CreateElement("ten");
-            XmlNode diachi = doc.CreateElement("diachi");
-            manv.InnerText = txtMaNV.Text;
-            ho.InnerText = txtHo.Text;
-            ten.InnerText = txtTen.Text;
-            diachi.InnerText = txtDiaChi.Text;
-            nhan_vien.Attributes.Append(manv);
-            hoten.AppendChild(ho);
-            hoten.AppendChild(ten);
-            nhan_vien.AppendChild(hoten);
-            nhan_vien.AppendChild(diachi);
-            goc.ReplaceChild(nhan_vien, oldNV);
-            doc.Save(tentep);
-            HienThi();
-        }
-
-        private void button4_Click(object sender, EventArgs e)
-        {
-            doc.Load(tentep);
-            XmlElement goc = doc.DocumentElement;
-            try
+            // Sửa
+            string link = "http://localhost:90/kthp/api/sanpham?ma=" + txtMa.Text + "&ten=" + txtTen.Text + "&gia=" + txtDon.Text + "&madm=" + cbxDM.SelectedValue;
+            HttpWebRequest resquest = WebRequest.CreateHttp(link);
+            resquest.Method = "PUT";
+            Stream stream = resquest.GetRequestStream();
+            DataContractJsonSerializer js = new DataContractJsonSerializer(typeof(bool));
+            object data = js.ReadObject(resquest.GetResponse().GetResponseStream());
+            bool result = (bool)data;
+            if (result)
             {
-                XmlNode find = goc.SelectSingleNode("/ds/nhanvien[@manv='" + txtMaNV.Text + "']");
-                if (find == null)
-                {
-                    MessageBox.Show("Khong tim thay nv");
-                    datanhanvien.Rows.Clear();
-                    return;
-                }
-                datanhanvien.Rows.Clear();
-                XmlNode manv = find.SelectSingleNode("@manv");
-                XmlNode ho = find.SelectSingleNode("hoten/ho");
-                XmlNode ten = find.SelectSingleNode("hoten/ten");
-                XmlNode diachi = find.SelectSingleNode("diachi");
-                datanhanvien.Rows[0].Cells[0].Value = manv.InnerText.ToString();
-                datanhanvien.Rows[0].Cells[1].Value = ho.InnerText.ToString();
-                datanhanvien.Rows[0].Cells[2].Value = ten.InnerText.ToString();
-                datanhanvien.Rows[0].Cells[3].Value = diachi.InnerText.ToString();
-            } catch {
-                MessageBox.Show("Khong tim thay nv");
-                datanhanvien.Rows.Clear();
-                return;
+                LoadDataGridView();
+                MessageBox.Show("Sửa thành công");
+            }
+            else
+            {
+                MessageBox.Show("Sửa không thành công");
             }
         }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            // Xóa
+            string link = "http://localhost:90/kthp/api/sanpham?ma=" + txtMa.Text;
+            HttpWebRequest resquest = WebRequest.CreateHttp(link);
+            resquest.Method = "DELETE";
+            Stream stream = resquest.GetRequestStream();
+            DataContractJsonSerializer js = new DataContractJsonSerializer(typeof(bool));
+            object data = js.ReadObject(resquest.GetResponse().GetResponseStream());
+            bool result = (bool)data;
+            if (result)
+            {
+                LoadDataGridView();
+                MessageBox.Show("Xóa thành công");
+            }
+            else
+            {
+                MessageBox.Show("Xóa không thành công");
+            }
+        }
+
+        private void dataGridView1_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            int d = e.RowIndex;
+            txtMa.Text = dataGridView1.Rows[d].Cells[0].Value.ToString();
+            txtTen.Text = dataGridView1.Rows[d].Cells[1].Value.ToString();
+            txtDon.Text = dataGridView1.Rows[d].Cells[2].Value.ToString();
+            foreach (DanhMuc item in cbxDM.Items)
+            {
+                if (item.MaDanhMuc.ToString() == dataGridView1.Rows[d].Cells[3].Value.ToString())
+                {
+                    cbxDM.SelectedItem = item;
+                }
+            }
+        }
+    }
+}
+
         //DialogResult result = MessageBox.Show("Bạn có chắc chắn muốn tiếp tục?", "Xác nhận", MessageBoxButtons.YesNo);
 
         //if (result == DialogResult.Yes)
